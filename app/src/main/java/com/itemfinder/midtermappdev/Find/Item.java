@@ -1,5 +1,8 @@
 package com.itemfinder.midtermappdev.Find;
 
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+
 public class Item {
     private String id;
     private String name;
@@ -10,6 +13,9 @@ public class Item {
     private String imageUrl;
     private boolean claimed;
 
+    public Item() {
+        // Default constructor required for calls to DataSnapshot.getValue(Item.class)
+    }
 
     public Item(String name, String category, String location, String status, String date) {
         this.name = name;
@@ -37,10 +43,7 @@ public class Item {
     public String getStatus() { return status; }
     public String getDate() { return date; }
     public String getImageUrl() { return imageUrl; }
-
     public boolean isClaimed() { return claimed; }
-    public void setClaimed(boolean claimed) { this.claimed = claimed; }
-
 
     // Setters
     public void setId(String id) { this.id = id; }
@@ -50,4 +53,23 @@ public class Item {
     public void setStatus(String status) { this.status = status; }
     public void setDate(String date) { this.date = date; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public void setClaimed(boolean claimed) { this.claimed = claimed; }
+
+    // ✅ New method to approve and remove item from Firebase "FindItems"
+    public void approveAndRemove() {
+        if (id != null && !id.isEmpty()) {
+            DatabaseReference itemRef = FirebaseDatabase.getInstance()
+                    .getReference("FindItems")
+                    .child(id);
+            itemRef.removeValue()
+                    .addOnSuccessListener(aVoid -> {
+                        System.out.println("Item approved and removed successfully.");
+                    })
+                    .addOnFailureListener(e -> {
+                        System.err.println("Failed to remove item: " + e.getMessage());
+                    });
+        } else {
+            System.err.println("Cannot remove item: ID is null or empty.");
+        }
+    }
 }

@@ -1,5 +1,6 @@
 package com.itemfinder.midtermappdev.Find;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -9,6 +10,11 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.widget.Button;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.itemfinder.midtermappdev.R;
 
 import java.util.ArrayList;
@@ -23,6 +29,8 @@ public class Finditem extends AppCompatActivity {
 
     Button btnAll, btnAcademic, btnWriting, btnPersonal, btnClothing, btnGadgets, btnIDs;
 
+    DatabaseReference databaseReference;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,18 +43,15 @@ public class Finditem extends AppCompatActivity {
         itemList = new ArrayList<>();
         filteredList = new ArrayList<>();
 
-        // Sample data
-        itemList.add(new Item("Notebook", "Academic Materials", "Library", "Available", "2025-10-01"));
-        itemList.add(new Item("Ballpen", "Writing & Drawing Tools", "Room 101", "Lost", "2025-10-02"));
-        itemList.add(new Item("Backpack", "Personal Belongings", "Cafeteria", "Available", "2025-09-30"));
-        itemList.add(new Item("T-Shirt", "Clothing & Accessories", "Gym", "Claimed", "2025-09-29"));
-        itemList.add(new Item("Smartphone", "Gadgets & Electronics", "Hallway", "Available", "2025-10-01"));
-        itemList.add(new Item("School ID", "IDs & Cards", "Registrar", "Lost", "2025-09-28"));
+        // Firebase reference
+        databaseReference = FirebaseDatabase.getInstance().getReference("items");
 
         // Start showing all items
-        filteredList.addAll(itemList);
         itemAdapter = new ItemAdapter(filteredList);
         recyclerView.setAdapter(itemAdapter);
+
+        // Load data from Firebase
+        loadItemsFromFirebase();
 
         // Find buttons
         btnAll = findViewById(R.id.btnAll);
@@ -105,27 +110,53 @@ public class Finditem extends AppCompatActivity {
         });
     }
 
-    // Filter items by category
+    // ✅ Load items from Firebase (skip approved/claimed items)
+    private void loadItemsFromFirebase() {
+        databaseReference.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                itemList.clear();
+                for (DataSnapshot dataSnapshot : snapshot.getChildren()) {
+                    Item item = dataSnapshot.getValue(Item.class);
+
+                    // ✅ Only show items not yet approved or claimed
+                    if (item != null && !item.isClaimed()) {
+                        itemList.add(item);
+                    }
+                }
+                showAllItems();
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) { }
+        });
+    }
+
+    // ✅ Filter items by category (excluding claimed)
     @SuppressLint("NotifyDataSetChanged")
     private void filterCategory(String category) {
         filteredList.clear();
         for (Item item : itemList) {
-            if (item.getCategory().equals(category)) {
+            if (item.getCategory().equals(category) && !item.isClaimed()) {
                 filteredList.add(item);
             }
         }
         itemAdapter.notifyDataSetChanged();
     }
 
-    // Show all items
+    // ✅ Show all items (excluding claimed)
     @SuppressLint("NotifyDataSetChanged")
     private void showAllItems() {
         filteredList.clear();
-        filteredList.addAll(itemList);
+        for (Item item : itemList) {
+            if (!item.isClaimed()) {
+                filteredList.add(item);
+            }
+        }
         itemAdapter.notifyDataSetChanged();
     }
 
-    // Reset all category buttons (light gray + black text)
+    // Reset all category buttons
     private void resetCategoryButtons() {
         Button[] buttons = {btnAll, btnAcademic, btnWriting, btnPersonal, btnClothing, btnGadgets, btnIDs};
         for (Button btn : buttons) {
@@ -134,9 +165,9 @@ public class Finditem extends AppCompatActivity {
         }
     }
 
-    // Highlight selected button (red + white text)
+    // Highlight selected button
     private void highlightButton(Button button) {
-        button.setBackgroundColor(Color.parseColor("#F44336")); // Red (Material Red 500)
+        button.setBackgroundColor(Color.parseColor("#F44336")); // Red
         button.setTextColor(Color.WHITE);
     }
 }
